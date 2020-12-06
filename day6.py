@@ -19,10 +19,11 @@ def parse_groups(data: str) -> t.Tuple[t.Tuple[str, ...], ...]:
 
 
 def unanimous_questions_for_group(group: t.Tuple[str, ...]) -> t.Tuple[str, ...]:
-    people_count = len(group)
+    people_in_group = len(group)
     answer_count = {}
-    for individual in group:
-        questions = list(individual)
+
+    for person in group:
+        questions = list(person)
         for q in questions:
             if answer_count.get(q) is not None:
                 answer_count[q] = answer_count[q] + 1
@@ -31,7 +32,7 @@ def unanimous_questions_for_group(group: t.Tuple[str, ...]) -> t.Tuple[str, ...]
 
     return tuple(
         filter(
-            lambda q: answer_count[q] == people_count,
+            lambda q: answer_count[q] == people_in_group,
             answer_count.keys()
         )
     )
