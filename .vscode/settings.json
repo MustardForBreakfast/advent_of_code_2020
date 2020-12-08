@@ -4,7 +4,7 @@
 
     "python.linting.flake8Enabled": true,
     "python.linting.flake8Args": [],
-    "python.linting.pydocstyleEnabled": true,
+    "python.linting.pydocstyleEnabled": false, // Aint noone got time for that
     "python.linting.pydocstyleArgs": [],
     "python.linting.pylintEnabled": true,
     "python.linting.mypyEnabled": true,
