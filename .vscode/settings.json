@@ -3,7 +3,7 @@
     "python.formatting.provider": "black",
 
     "python.linting.flake8Enabled": true,
-    "python.linting.flake8Args": [],
+    "python.linting.flake8Args": ["--ignore=E501"],
     "python.linting.pydocstyleEnabled": false, // Aint noone got time for that
     "python.linting.pydocstyleArgs": [],
     "python.linting.pylintEnabled": true,
