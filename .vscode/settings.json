@@ -1,3 +1,18 @@
 {
-    "python.pythonPath": "/usr/local/opt/python@3.9/bin/python3.9"
-}
+    "editor.formatOnSave": true,
+    "python.formatting.provider": "black",
+
+    "python.linting.flake8Enabled": true,
+    "python.linting.flake8Args": [],
+    "python.linting.pydocstyleEnabled": true,
+    "python.linting.pydocstyleArgs": [],
+    "python.linting.pylintEnabled": true,
+    "python.linting.mypyEnabled": true,
+    "python.linting.mypyArgs": [],
+    "python.linting.pylintArgs": [
+      "--load-plugins",
+      "infra/dev/pylint/domain_app_imports"
+    ],
+
+    "python.pythonPath": "/Users/justinwyane/.pyenv/take-two/bin/python",
+  }
