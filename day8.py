@@ -31,6 +31,21 @@ second time, what value is in the accumulator?
 """
 
 
+class LoopDetectedError(Exception):
+    pass
+
+
+class RemediationError(Exception):
+    pass
+
+
+def dump_instruction(inst: t.Tuple[str, int]) -> str:
+    """Dump a parsed instruction to a line of data"""
+    action, count = inst
+    sign = "+" if count >= 0 else ""
+    return f"{action} {sign}{count}"
+
+
 @dataclass
 class ProgramState:
     cur_amount: int
@@ -49,8 +64,16 @@ class ProgramState:
 
         return (groups[1], int(groups[2]))
 
+    @property
+    def is_final(self) -> bool:
+        """Return whether this state is off the end of the instruction set."""
+        return self.cur_index >= len(self.program)
+
     def get_next(self) -> "ProgramState":
         """Run the pending instruction to get the next program state."""
+        if self.is_final:
+            raise ValueError("can not get next of final State!")
+
         action, amount = self._parse_instruction(self.program[self.cur_index])
 
         next_amount = None
@@ -78,13 +101,13 @@ class ProgramState:
 @dataclass
 class Program:
     state: ProgramState
-    indexes_seen: set
+    indexes_seen: t.List[int]
 
     @classmethod
     def from_instructions(cls, instructions: t.Tuple[str, ...]) -> "Program":
         return cls(
             state=ProgramState.get_initial(instructions),
-            indexes_seen=set(),
+            indexes_seen=[],
         )
 
     @property
@@ -95,21 +118,90 @@ class Program:
     def pointer(self):
         return self.state.cur_index
 
-    def log_index(self):
-        self.indexes_seen.add(self.pointer)
+    @property
+    def is_complete(self):
+        return self.state.is_final
 
-    def run(self):
-        """Run through the program until a loop is found, then print accumulator."""
+    def log_index(self):
+        """Record the current index.
+
+        Warning: not idempotent for part 2!
+        """
+        self.indexes_seen.append(self.pointer)
+
+    @staticmethod
+    def _flip_action(inst: str) -> str:
+        flipped = {"nop": "jmp", "jmp": "nop"}
+        return flipped[inst]
+
+    def _attempt_remediated_run(self):
+        """Attempt to repair the program instructions and return a value."""
+        orig_program = self.state.program
+        pointer_index = self.indexes_seen.index(self.pointer)
+        # fmt: off
+        loop_cycle = self.indexes_seen[pointer_index:]
+        # fmt: on
+        bad_ops = ("nop", "jmp")
+        nop_jmp = tuple(
+            filter(
+                lambda i: ProgramState._parse_instruction(orig_program[i])[0]
+                in bad_ops,
+                loop_cycle,
+            )
+        )
+
+        for i in nop_jmp:
+            # TODO: move this util out of the class
+            action, count = ProgramState._parse_instruction(orig_program[i])
+            flipped = self._flip_action(action)
+            flipped_instruction = dump_instruction((flipped, count))
+
+            repaired = list(orig_program + ())
+            repaired[i] = flipped_instruction
+
+            pgrm_repaired = self.from_instructions(tuple(repaired))
+
+            try:
+                # We want this to error out if it finds a loop again
+                return pgrm_repaired.run(remediation_mode=False)
+
+            except LoopDetectedError:
+                pass
+
+        raise RemediationError("Failed to remediate.")
+
+        return self.accum
+
+    def run(self, remediation_mode=False) -> int:
+        """Run through the program and return the accumulator at the final state.
+
+        If run in remediation_mode, attempt to repair the program in the event a
+        loop is detected and return the result of the repaired program's run.
+        """
         if self.pointer in self.indexes_seen:
-            print(self.accum)
-            return
+            if not remediation_mode:
+                raise LoopDetectedError(
+                    "Loop detected, terminating before re-entry. index: "
+                    f"{self.pointer}, accum: {self.accum}"
+                )
+            # TODO: trigger remediation behavior here.
+            print(
+                f"Loop detected at index {self.pointer}. Attempting to "
+                "remediate and continue."
+            )
+            return self._attempt_remediated_run()
+
+        if self.is_complete:
+            print("Program complete.")
+            return self.accum
 
         self.log_index()
         self.state = self.state.get_next()
-        self.run()
+        return self.run(remediation_mode)
 
 
 if __name__ == "__main__":
-    instructions = parse_to_lines("data/day8_example.txt")
+    instructions = parse_to_lines("data/day8.txt")
     program = Program.from_instructions(instructions)
-    program.run()
+    result = program.run(True)
+    print(result)
