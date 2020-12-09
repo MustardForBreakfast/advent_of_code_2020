@@ -1,34 +1,9 @@
-"""Solution for Day 8."""
+"""Solution for Day 8. (part 2)"""
 import re
 import typing as t
 from dataclasses import dataclass
 
 from utils.parse import parse_to_lines
-
-"""
-nop +0  | 1
-acc +1  | 2, 8(!)
-jmp +4  | 3
-acc +3  | 6
-jmp -3  | 7
-acc -99 |
-acc +1  | 4
-jmp -4  | 5
-acc +6  |
-
-First, the nop +0 does nothing. Then, the accumulator is increased from 0 to 1
-(acc +1) and jmp +4 sets the next instruction to the other acc +1 near the bottom.
-After it increases the accumulator from 1 to 2, jmp -4 executes, setting the next
-instruction to the only acc +3. It sets the accumulator to 5, and jmp -3 causes
-the program to continue back at the first acc +1.
-
-
-Immediately before the program would run an instruction a second time, the value
-in the accumulator is 5.
-
-Run your copy of the boot code. Immediately before any instruction is executed a
-second time, what value is in the accumulator?
-"""
 
 
 class LoopDetectedError(Exception):
@@ -37,6 +12,14 @@ class LoopDetectedError(Exception):
 
 class RemediationError(Exception):
     pass
+
+
+def parse_instruction(line: str) -> t.Tuple[str, int]:
+    """Parse an instruction form a line of data"""
+    groups = re.search(r"^([a-z]{3})\s([+-]\d+)$", line)
+    assert groups is not None
+
+    return (groups[1], int(groups[2]))
 
 
 def dump_instruction(inst: t.Tuple[str, int]) -> str:
@@ -56,14 +39,6 @@ class ProgramState:
     def get_initial(cls, program: t.Tuple[str, ...]) -> "ProgramState":
         return ProgramState(cur_amount=0, cur_index=0, program=program)
 
-    @staticmethod
-    def _parse_instruction(line: str) -> t.Tuple[str, int]:
-        """Parse an instruction form a line of data"""
-        groups = re.search(r"^([a-z]{3})\s([+-]\d+)$", line)
-        assert groups is not None
-
-        return (groups[1], int(groups[2]))
-
     @property
     def is_final(self) -> bool:
         """Return whether this state is off the end of the instruction set."""
@@ -74,7 +49,7 @@ class ProgramState:
         if self.is_final:
             raise ValueError("can not get next of final State!")
 
-        action, amount = self._parse_instruction(self.program[self.cur_index])
+        action, amount = parse_instruction(self.program[self.cur_index])
 
         next_amount = None
         next_index = None
@@ -134,7 +109,7 @@ class Program:
         flipped = {"nop": "jmp", "jmp": "nop"}
         return flipped[inst]
 
-    def _attempt_remediated_run(self):
+    def _attempt_remediation(self):
         """Attempt to repair the program instructions and return a value."""
         orig_program = self.state.program
         pointer_index = self.indexes_seen.index(self.pointer)
@@ -144,15 +119,14 @@ class Program:
         bad_ops = ("nop", "jmp")
         nop_jmp = tuple(
             filter(
-                lambda i: ProgramState._parse_instruction(orig_program[i])[0]
-                in bad_ops,
+                lambda i: parse_instruction(orig_program[i])[0] in bad_ops,
                 loop_cycle,
             )
         )
 
         for i in nop_jmp:
             # TODO: move this util out of the class
-            action, count = ProgramState._parse_instruction(orig_program[i])
+            action, count = parse_instruction(orig_program[i])
             flipped = self._flip_action(action)
             flipped_instruction = dump_instruction((flipped, count))
 
@@ -184,15 +158,13 @@ class Program:
                     "Loop detected, terminating before re-entry. index: "
                     f"{self.pointer}, accum: {self.accum}"
                 )
-            # TODO: trigger remediation behavior here.
             print(
                 f"Loop detected at index {self.pointer}. Attempting to "
                 "remediate and continue."
             )
-            return self._attempt_remediated_run()
+            return self._attempt_remediation()
 
         if self.is_complete:
-            print("Program complete.")
             return self.accum
 
         self.log_index()
