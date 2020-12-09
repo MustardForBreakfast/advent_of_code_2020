@@ -153,16 +153,17 @@ class Program:
         loop is detected and return the result of the repaired program's run.
         """
         if self.pointer in self.indexes_seen:
-            if not remediation_mode:
-                raise LoopDetectedError(
-                    "Loop detected, terminating before re-entry. index: "
-                    f"{self.pointer}, accum: {self.accum}"
+            if remediation_mode:
+                print(
+                    f"Loop detected at index {self.pointer}. Attempting to "
+                    "remediate and continue."
                 )
-            print(
-                f"Loop detected at index {self.pointer}. Attempting to "
-                "remediate and continue."
+                return self._attempt_remediation()
+
+            raise LoopDetectedError(
+                "Loop detected, terminating before re-entry. index: "
+                f"{self.pointer}, accum: {self.accum}"
             )
-            return self._attempt_remediation()
 
         if self.is_complete:
             return self.accum
@@ -175,5 +176,5 @@ class Program:
 if __name__ == "__main__":
     instructions = parse_to_lines("data/day8.txt")
     program = Program.from_instructions(instructions)
-    result = program.run(True)
+    result = program.run(remediation_mode=True)
     print(result)
